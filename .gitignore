@@ -1,0 +1,6 @@
+# Ignore execution related items
+bin/
+obj/
+
+# Ignore configs
+.vscode
