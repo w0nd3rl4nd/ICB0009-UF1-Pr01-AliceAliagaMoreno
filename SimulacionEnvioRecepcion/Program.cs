@@ -15,6 +15,8 @@ namespace SimuladorEnvioRecepcion
         static ClaveSimetrica ClaveSimetricaEmisor = new ClaveSimetrica();
         static ClaveSimetrica ClaveSimetricaReceptor = new ClaveSimetrica();
 
+        static byte[] Salt;
+
         static string TextoAEnviar = "Me he dado cuenta que incluso las personas que dicen que todo está predestinado y que no podemos hacer nada para cambiar nuestro destino igual miran antes de cruzar la calle. Stephen Hawking.";
         
         static void Main(string[] args)
@@ -71,15 +73,32 @@ namespace SimuladorEnvioRecepcion
         {
             Console.WriteLine ("Indica tu nombre de usuario:");
             UserName = Console.ReadLine();
-            //Una vez obtenido el nombre de usuario lo guardamos en la variable UserName y este ya no cambiará 
 
             Console.WriteLine ("Indica tu password:");
             string passwordRegister = Console.ReadLine();
-            //Una vez obtenido el passoword de registro debemos tratarlo como es debido para almacenarlo correctamente a la variable SecurePass
 
-            /***PARTE 1***/
-            /*Añadir el código para poder almacenar el password de manera segura*/
+            // Generar salt aleatorio
+            Salt = new byte[16];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(Salt);
+            }
 
+            // Crear hash con SHA512 + salt
+            using (var sha512 = SHA512.Create())
+            {
+                byte[] passwordBytes = Encoding.UTF8.GetBytes(passwordRegister);
+                byte[] passwordConSalt = new byte[Salt.Length + passwordBytes.Length];
+
+                // Concatenar salt + password
+                Buffer.BlockCopy(Salt, 0, passwordConSalt, 0, Salt.Length);
+                Buffer.BlockCopy(passwordBytes, 0, passwordConSalt, Salt.Length, passwordBytes.Length);
+
+                byte[] hashBytes = sha512.ComputeHash(passwordConSalt);
+                SecurePass = Convert.ToBase64String(hashBytes); // Lo guardamos como string para comparar
+            }
+
+            Console.WriteLine("Registro completado con éxito.\n");
         }
 
 
@@ -95,11 +114,37 @@ namespace SimuladorEnvioRecepcion
                 Console.WriteLine ("Password: ");
                 string Password = Console.ReadLine();
 
-                /***PARTE 1***/
-                /*Modificar esta parte para que el login se haga teniendo en cuenta que el registro se realizó con SHA512 y salt*/
+                if (userName == UserName)
+                {
+                    using (var sha512 = SHA512.Create())
+                    {
+                        byte[] passwordBytes = Encoding.UTF8.GetBytes(Password);
+                        byte[] passwordConSalt = new byte[Salt.Length + passwordBytes.Length];
 
+                        // Repetimos la misma concatenación que en el registro
+                        Buffer.BlockCopy(Salt, 0, passwordConSalt, 0, Salt.Length);
+                        Buffer.BlockCopy(passwordBytes, 0, passwordConSalt, Salt.Length, passwordBytes.Length);
 
-            }while (!auxlogin);
+                        byte[] hashBytes = sha512.ComputeHash(passwordConSalt);
+                        string hashBase64 = Convert.ToBase64String(hashBytes);
+
+                        if (hashBase64 == SecurePass)
+                        {
+                            Console.WriteLine("Login correcto.\n");
+                            auxlogin = true;
+                        }
+                        else
+                        {
+                            Console.WriteLine("Contraseña incorrecta.\n");
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Usuario incorrecto.\n");
+                }
+
+            } while (!auxlogin);
 
             return auxlogin;
         }
